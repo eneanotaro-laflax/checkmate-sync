@@ -1,0 +1,28 @@
+# CheckMate sync — Render Blueprint
+# Dashboard: New → Blueprint → select this repo (or paste this file).
+#
+# Persistent = Starter plan (always-on) + disk (survives redeploys).
+# Free plan spins down when idle and cannot attach a disk.
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: checkmate-sync
+    runtime: node
+    plan: starter
+    region: frankfurt
+    # When this file lives in CheckMateWeb/server and the Git repo is the whole
+    # app, set rootDir: server. For a server-only repo, omit rootDir.
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: checkmate-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /data
