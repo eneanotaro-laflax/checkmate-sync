@@ -30,27 +30,19 @@ For physical phones on the same Wi‑Fi, use your Mac’s LAN IP instead of `loc
 | `POST` | `/households/:inviteToken/join` | `{ member }` | Payload with member merged |
 | `POST` | `/households` | optional `{ inviteToken, payload }` | Create household |
 
-## Deploy (Render — free web service)
+## Deploy (Render — persistent)
 
-1. Create a [Render](https://render.com) account.
-2. **New → Web Service** → connect this Git repo (or deploy from local with the Render CLI).
-3. Settings:
-   - **Root Directory:** `server`
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-   - **Instance:** Free
-4. After deploy, copy the public URL (e.g. `https://checkmate-sync.onrender.com`).
-5. Set in `CheckMateWeb/.env` and `CheckMateWeb-secrets/.env`:
+GitHub (ready to connect): **https://github.com/eneanotaro-laflax/checkmate-sync**
+
+Step-by-step clicks: see **[RENDER_DEPLOY.md](./RENDER_DEPLOY.md)**.
+
+Summary: Render → **New → Blueprint** → repo `checkmate-sync` → apply `render.yaml` (Starter + `/data` disk) → copy HTTPS URL → set:
 
 ```bash
 EXPO_PUBLIC_SYNC_URL=https://checkmate-sync.onrender.com
 ```
 
-6. Restart Expo (`npm start`).
-
-**Note:** Free Render services spin down after idle time; the first request can take ~30–60s. For always-on, use a paid instance or another host (Fly.io, Railway, a cheap VPS).
-
-Optional persistent disk on Render: set `DATA_DIR=/data` and attach a disk mounted at `/data` so households survive redeploys. Without a disk, data lives on the ephemeral filesystem.
+Then **restart Expo** (`npm start`). Free plan works for a quick test but sleeps when idle and cannot keep a disk.
 
 ## Env vars (server)
 
