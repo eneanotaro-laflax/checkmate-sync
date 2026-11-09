@@ -18,7 +18,32 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = Number(process.env.PORT) || 8787;
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+
+/** Prefer DATA_DIR (e.g. Render disk at /data); fall back if unwritable (Free plan has no disk). */
+function resolveDataDir() {
+  const fallback = path.join(__dirname, 'data');
+  const preferred = process.env.DATA_DIR || fallback;
+  try {
+    if (!fs.existsSync(preferred)) {
+      fs.mkdirSync(preferred, { recursive: true });
+    }
+    fs.accessSync(preferred, fs.constants.W_OK);
+    return preferred;
+  } catch (err) {
+    if (preferred !== fallback) {
+      console.warn(
+        `[checkmate-sync] DATA_DIR=${preferred} not usable (${err.code || err.message}); using ${fallback}`
+      );
+      if (!fs.existsSync(fallback)) {
+        fs.mkdirSync(fallback, { recursive: true });
+      }
+      return fallback;
+    }
+    throw err;
+  }
+}
+
+const DATA_DIR = resolveDataDir();
 const STORE_FILE = path.join(DATA_DIR, 'households.json');
 
 /** @typedef {{ version: 1, exportedAt: string, revisedAt: string, state: object, notifications?: unknown[], notificationPrefs?: object }} BackendSyncPayload */
