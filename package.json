@@ -6,7 +6,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "smoke": "node smoke-test.js",
+    "smoke:remote": "SYNC_URL=https://checkmate-sync.onrender.com node smoke-test.js"
   },
   "engines": {
     "node": ">=18"
