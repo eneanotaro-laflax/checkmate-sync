@@ -106,37 +106,58 @@ function normalizeMember(raw) {
   };
 }
 
-function mergeMemberIntoState(state, member) {
-  const members = Array.isArray(state.members) ? [...state.members] : [];
-  const tasks = Array.isArray(state.tasks) ? [...state.tasks] : [];
-  const idx = members.findIndex(
-    (m) =>
-      m.id === member.id ||
-      (m.email &&
-        member.email &&
-        String(m.email).toLowerCase() === String(member.email).toLowerCase()),
-  );
+function sameMember(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id && a.id === b.id) return true;
+  if (
+    a.email &&
+    b.email &&
+    String(a.email).toLowerCase() === String(b.email).toLowerCase()
+  ) {
+    return true;
+  }
+  return false;
+}
 
-  if (idx === -1) {
-    members.push(member);
-    for (let i = 0; i < tasks.length; i += 1) {
-      const task = tasks[i];
-      const participantIds = Array.isArray(task.participantIds)
-        ? [...task.participantIds]
-        : [];
-      if (!participantIds.includes(member.id)) {
-        participantIds.push(member.id);
-      }
-      tasks[i] = { ...task, participantIds };
+/**
+ * Union household members so a newer LWW PUT cannot drop a partner who just joined.
+ * Also ensures every member appears in each task's participantIds.
+ */
+function unionMembersIntoState(baseState, extraMembers) {
+  const members = Array.isArray(baseState.members) ? [...baseState.members] : [];
+  const tasks = Array.isArray(baseState.tasks) ? [...baseState.tasks] : [];
+  const incoming = Array.isArray(extraMembers) ? extraMembers : [];
+
+  for (const raw of incoming) {
+    const member = normalizeMember(raw) || (raw && raw.id && raw.displayName ? raw : null);
+    if (!member) continue;
+    const idx = members.findIndex((m) => sameMember(m, member));
+    if (idx === -1) {
+      members.push(member);
+    } else {
+      members[idx] = { ...members[idx], ...member };
     }
-  } else {
-    members[idx] = { ...members[idx], ...member };
   }
 
+  const allIds = members.map((m) => m.id).filter(Boolean);
+  for (let i = 0; i < tasks.length; i += 1) {
+    const task = tasks[i];
+    const participantIds = Array.isArray(task.participantIds)
+      ? [...task.participantIds]
+      : [];
+    for (const id of allIds) {
+      if (!participantIds.includes(id)) participantIds.push(id);
+    }
+    tasks[i] = { ...task, participantIds };
+  }
+
+  return { ...baseState, members, tasks };
+}
+
+function mergeMemberIntoState(state, member) {
+  const next = unionMembersIntoState(state, [member]);
   return {
-    ...state,
-    members,
-    tasks,
+    ...next,
     inviteToken: state.inviteToken || undefined,
     currentUserId: member.id,
   };
@@ -231,6 +252,12 @@ app.put('/households/:inviteToken', (req, res) => {
       res.status(200).json(existing);
       return;
     }
+    // Incoming wins on revisedAt, but never drop members that only exist server-side
+    // (classic race: host mutates after partner joined → would wipe the joiner).
+    incoming.state = unionMembersIntoState(
+      incoming.state,
+      existing.state?.members || [],
+    );
   }
 
   store.households[token] = incoming;
